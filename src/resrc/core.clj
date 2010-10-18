@@ -1,6 +1,6 @@
 (ns resrc.core
   (:refer-clojure :exclude [get])
-  (:use [clout.core]))
+  (:use [clout.core :as clout]))
 
 (defprotocol Resource
   (get [resource request])
@@ -13,7 +13,7 @@
 (defn find-resource
   [routes path]
   (some (fn [[path-spec resource]]
-          (when-let [params (route-matches path-spec path)]
+          (when-let [params (clout/route-matches path-spec path)]
             [resource params]))
         (partition 2 routes)))
 
@@ -74,3 +74,40 @@ Assumes representations are functions from [resource request & rest] to response
       (representation resource (method resource request))
       :not-acceptable)))
 
+;;; sugar
+
+(defn emit-resource-handler
+  [[method & forms]]
+  `(~method [~'+resource  ~'+request]
+            ~@forms))
+
+(defn split-type
+  [type]
+  [(keyword (namespace type)) (keyword (name type))])
+
+(defn emit-representations
+  [representations]
+  (apply vector
+         (map (fn [[type representation]] [(split-type type)
+                                          `(fn [~'+resource ~'+response] ~representation)])
+         (partition 2 representations))))
+
+
+(defmacro resource
+  [& args]
+  (let [[representations & specs] (reverse args)]
+    `(with-representations (reify Resource ~@(map emit-resource-handler specs))
+       ~(emit-representations representations))))
+
+;;; faster routing
+
+(defn compile-route
+  [[path-spec resource]]
+  (let [compiled-path-spec (clout/route-compile path-spec)]
+    (fn [path] (when-let [params (clout/route-matches compiled-path-spec path)]
+                [resource params]))))
+
+(defn compile-routes
+  [routes]
+  (let [compiled-routes (map compile-route (partition 2 routes))]
+    (fn [path] (some #(% path) compiled-routes))))

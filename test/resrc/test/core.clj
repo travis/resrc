@@ -39,7 +39,7 @@
         f3 #(3)
         representations
           [[[:text :plain] f1]
-           [[:text :html] 22]
+           [[:text :html] f2]
            [[:image :jpeg] f3]]]
     (is (= [[:text :plain] f1] (find-representation [:* :*] representations)))
     (is (= [[:text :plain] f1] (find-representation [:text :*] representations)))
@@ -65,3 +65,57 @@
           [[[:text :plain] (fn [resource response] (str response "baz"))]])]
    (is (= "foo bar baz"
           (process-request ["/bar" resource] get "/bar" [[:text :plain]] "foo ")))))
+
+
+(deftest test-emit-resource-handler
+  (is (= '(get [+resource +request] foo)
+         (emit-resource-handler '(get foo)))))
+
+(deftest test-emit-representations
+  (is (= '[[[:text :plain] (clojure.core/fn [+resource +response] foo)]
+           [[:text :html] (clojure.core/fn [+resource +response] bar)]]
+           (emit-representations '[:text/plain foo
+                                       :text/html bar]))))
+
+(deftest test-resource
+  (let [resource (resource
+                  (get "fuz ")
+                  (put +request)
+                  [:text/html (str +response "representation")])]
+    (is (= "fuz representation"
+           (process-request ["/bar" resource] get "/bar" [[:text :html]] "foo ")))
+    (is (= "foo representation"
+           (process-request ["/bar" resource] put "/bar" [[:text :html]] "foo ")))))
+
+(comment
+  "Some lightweight perf tests for our routing code"
+  (def bunch-of-routes
+       ["/foo" :a
+        "/bar" :b
+        "/foo/:id" :c
+        "/foo/bar/baz" :d
+        "/bar/:id" :e])
+
+  (dotimes [_ 5] (time (find-resource bunch-of-routes "/bar/10")))
+  "Elapsed time: 1.774 msecs"
+  "Elapsed time: 1.694 msecs"
+  "Elapsed time: 1.461 msecs"
+  "Elapsed time: 2.743 msecs"
+  "Elapsed time: 1.588 msecs"
+
+  (def compiled-routes (compile-routes bunch-of-routes))
+
+  (dotimes [_ 5] (time (compiled-routes "/bar/10")))
+  ;; don't precompile path specs
+  "Elapsed time: 1.712 msecs"
+  "Elapsed time: 1.38 msecs"
+  "Elapsed time: 1.504 msecs"
+  "Elapsed time: 1.662 msecs"
+  "Elapsed time: 1.193 msecs"
+
+  ;; precompile path specs
+  "Elapsed time: 0.219 msecs"
+  "Elapsed time: 0.102 msecs"
+  "Elapsed time: 0.091 msecs"
+  "Elapsed time: 0.095 msecs"
+  "Elapsed time: 0.128 msecs")
