@@ -1,7 +1,8 @@
 (ns resrc.test.ring
-  (:use [resrc.ring]
+  (:use [resrc identifiers ring]
         [clojure.test])
-  (:require [resrc.core :as core]))
+  (:require [resrc.core :as core]
+            [resrc.util :as util]))
 
 (deftest test-parse-accept
   (is (= (seq [[:text :plain] [:text :html]])
@@ -16,16 +17,16 @@
 
 (deftest test-process-request
   (let [resource
-        (core/resource
+        (util/resource
          (core/GET "foo ")
          [:text/plain {:body (str +response "bar")}])]
     (is (= "foo bar"
-           (:body (process-request ["/bar" resource]
+           (:body (process-request (create-router [["/bar" resource]])
                                    {:method :get
                                     :uri "/bar"
                                     :headers {"Accept" "text/plain"}}))))
     (is (= 405
-           (:status (process-request ["/bar" resource]
+           (:status (process-request (create-router [["/bar" resource]])
                                      {:method :get
                                       :uri "/bar"
                                       :headers {"Accept" "text/html"}}))))))
@@ -36,13 +37,13 @@
                   (PUT +body)
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "fuz representation"
-           (:body (process-request ["/bar" resource]
+           (:body (process-request (create-router [["/bar" resource]])
                                    {:method :get
                                     :uri "/bar"
                                     :headers {"Accept" "text/html"}
                                     :body "foo "}))))
     (is (= "foo representation"
-           (:body (process-request ["/bar" resource]
+           (:body (process-request (create-router [["/bar" resource]])
                                    {:method :put
                                     :uri "/bar"
                                     :headers {"Accept" "text/html"}
@@ -54,7 +55,7 @@
                   (GET +body)
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "foo representation"
-           (:body (process-request ["/bar" resource]
+           (:body (process-request (create-router [["/bar" resource]])
                                    {:method :get
                                     :uri "/bar"
                                     :headers {"Accept" "text/html"}

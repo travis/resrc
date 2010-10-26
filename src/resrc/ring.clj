@@ -1,5 +1,13 @@
 (ns resrc.ring
+  "Utilities for creating ring specific resources.
+
+These utilities are all experimental and may be modified or moved
+in the future.
+
+Use at your own risk."
   (:require [resrc.core :as core]
+            [resrc.util :as util]
+            [resrc.representations :as repr]
             [clojure.string :as s]))
 
 
@@ -25,9 +33,9 @@
 (defmacro resource
   [& args]
   (let [[representations & specs] (reverse args)]
-    `(resrc.core/with-representations
+    `(repr/with-representations
        (reify resrc.core/Resource ~@(map emit-resource-handler specs))
-       ~(resrc.core/emit-representations representations))))
+       ~(util/emit-representations representations))))
 
 (defn parse-accept-params
   "params is a seq of params like 'q=0.8' or 'level=1'"
@@ -84,16 +92,20 @@ text/*, text/html, text/html;level=1, */*"
   "method should be a method supported by Resource.
 
 Assumes representations are functions from [resource request & rest] to response."
-  [routes request]
+  [router request]
   (let [path (:uri request)
-        [resource path-params] (core/find-resource routes path)
+        [resource path-params] (router path)
         method (ns-resolve 'resrc.core (symbol (s/upper-case (name (:method request)))))
         accepts-list (parse-accept ((:headers request) "Accept"))]
     (if-let [[response-type representation]
-             (core/find-acceptable accepts-list (core/representations resource))]
+             (repr/find-acceptable accepts-list (repr/representations resource))]
       (add-content-type
        (representation
         resource
         (method resource (assoc request :path-params path-params)))
        response-type)
       {:status 405 :headers {}})))
+
+(defn ring-handler
+  [router]
+  #(process-request router %))
