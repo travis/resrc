@@ -1,12 +1,11 @@
 (ns resrc.core
-  (:refer-clojure :exclude [get])
   (:use [clout.core :as clout]))
 
 (defprotocol Resource
-  (get [resource request])
-  (put [resource request])
-  (delete [resource request])
-  (post [resource request]))
+  (GET [resource request])
+  (PUT [resource request])
+  (DELETE [resource request])
+  (POST [resource request]))
 
 ;;; identifiers
 

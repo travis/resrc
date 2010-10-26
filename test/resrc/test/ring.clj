@@ -17,7 +17,7 @@
 (deftest test-process-request
   (let [resource
         (core/resource
-         (core/get "foo ")
+         (core/GET "foo ")
          [:text/plain {:body (str +response "bar")}])]
     (is (= "foo bar"
            (:body (process-request ["/bar" resource]
@@ -32,8 +32,8 @@
 
 (deftest test-resource
   (let [resource (resource
-                  (get "fuz ")
-                  (put +body)
+                  (GET "fuz ")
+                  (PUT +body)
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "fuz representation"
            (:body (process-request ["/bar" resource]
@@ -51,7 +51,7 @@
 
 (deftest test-resource
   (let [resource (resource
-                  (get +body)
+                  (GET +body)
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "foo representation"
            (:body (process-request ["/bar" resource]

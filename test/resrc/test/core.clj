@@ -1,13 +1,12 @@
 (ns resrc.test.core
-  (:refer-clojure :exclude [get])
   (:use [resrc.core] :reload)
   (:use [clojure.test]))
 
 
 (deftest test-Resource
   (let [r (reify Resource
-                 (get [_ _] "fun"))]
-    (is (= "fun" (get r nil)))))
+                 (GET [_ _] "fun"))]
+    (is (= "fun" (GET r nil)))))
 
 (deftest test-find-resource
   (let [routes ["/foo" 1
@@ -61,15 +60,15 @@
 (deftest test-process-request
   (let [resource
         (with-representations
-          (reify Resource (get [_ request] (str request "bar ")))
+          (reify Resource (GET [_ request] (str request "bar ")))
           [[[:text :plain] (fn [resource response] (str response "baz"))]])]
    (is (= "foo bar baz"
-          (process-request ["/bar" resource] get "/bar" [[:text :plain]] "foo ")))))
+          (process-request ["/bar" resource] GET "/bar" [[:text :plain]] "foo ")))))
 
 
 (deftest test-emit-resource-handler
-  (is (= '(get [+resource +request] foo)
-         (emit-resource-handler '(get foo)))))
+  (is (= '(GET [+resource +request] foo)
+         (emit-resource-handler '(GET foo)))))
 
 (deftest test-emit-representations
   (is (= '[[[:text :plain] (clojure.core/fn [+resource +response] foo)]
@@ -79,13 +78,13 @@
 
 (deftest test-resource
   (let [resource (resource
-                  (get "fuz ")
-                  (put +request)
+                  (GET "fuz ")
+                  (PUT +request)
                   [:text/html (str +response "representation")])]
     (is (= "fuz representation"
-           (process-request ["/bar" resource] get "/bar" [[:text :html]] "foo ")))
+           (process-request ["/bar" resource] GET "/bar" [[:text :html]] "foo ")))
     (is (= "foo representation"
-           (process-request ["/bar" resource] put "/bar" [[:text :html]] "foo ")))))
+           (process-request ["/bar" resource] PUT "/bar" [[:text :html]] "foo ")))))
 
 (comment
   "Some lightweight perf tests for our routing code"

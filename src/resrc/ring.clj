@@ -87,7 +87,7 @@ Assumes representations are functions from [resource request & rest] to response
   [routes request]
   (let [path (:uri request)
         [resource path-params] (core/find-resource routes path)
-        method (ns-resolve 'resrc.core (symbol (name (:method request))))
+        method (ns-resolve 'resrc.core (symbol (s/upper-case (name (:method request)))))
         accepts-list (parse-accept ((:headers request) "Accept"))]
     (if-let [[response-type representation]
              (core/find-acceptable accepts-list (core/representations resource))]
