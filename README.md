@@ -12,11 +12,9 @@ REST's uniform interface - GET, PUT, POST, and DELETE.
 Implementors can easily extend the Resource protocol to their
 datatypes, like:
 
-{% highlight clj %}
-(extend-protocol Resource
-  clojure.lang.APersistentMap
-  (GET [hash request] (get hash request)))
-{% endhighlight %}
+    (extend-protocol Resource
+      clojure.lang.APersistentMap
+      (GET [hash request] (get hash request)))
 
 ## Open Questions
 
