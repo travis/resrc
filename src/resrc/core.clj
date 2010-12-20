@@ -2,7 +2,7 @@
   "The core Resource abstraction")
 
 (defprotocol Resource
-  (GET [resource request])
-  (PUT [resource request])
-  (DELETE [resource request])
-  (POST [resource request]))
+  (GET [resource] [resource request])
+  (PUT [resource] [resource request])
+  (DELETE [resource] [resource request])
+  (POST [resource] [resource request]))
