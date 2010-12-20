@@ -22,14 +22,14 @@
          [:text/plain {:body (str +response "bar")}])]
     (is (= "foo bar"
            (:body (process-request (create-router [["/bar" resource]])
-                                   {:method :get
+                                   {:request-method :get
                                     :uri "/bar"
-                                    :headers {"Accept" "text/plain"}}))))
-    (is (= 405
+                                    :headers {"accept" "text/plain"}}))))
+    (is (= 406
            (:status (process-request (create-router [["/bar" resource]])
-                                     {:method :get
+                                     {:request-method :get
                                       :uri "/bar"
-                                      :headers {"Accept" "text/html"}}))))))
+                                      :headers {"accept" "text/html"}}))))))
 
 (deftest test-resource
   (let [resource (resource
@@ -38,15 +38,15 @@
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "fuz representation"
            (:body (process-request (create-router [["/bar" resource]])
-                                   {:method :get
+                                   {:request-method :get
                                     :uri "/bar"
-                                    :headers {"Accept" "text/html"}
+                                    :headers {"accept" "text/html"}
                                     :body "foo "}))))
     (is (= "foo representation"
            (:body (process-request (create-router [["/bar" resource]])
-                                   {:method :put
+                                   {:request-method :put
                                     :uri "/bar"
-                                    :headers {"Accept" "text/html"}
+                                    :headers {"accept" "text/html"}
                                     :body "foo "}))))))
 
 
@@ -56,7 +56,7 @@
                   [:text/html  {:body (str +response "representation")}])]
     (is (= "foo representation"
            (:body (process-request (create-router [["/bar" resource]])
-                                   {:method :get
+                                   {:request-method :get
                                     :uri "/bar"
-                                    :headers {"Accept" "text/html"}
+                                    :headers {"accept" "text/html"}
                                     :body "foo "}))))))

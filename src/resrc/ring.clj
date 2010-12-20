@@ -60,7 +60,7 @@ params is a map like {:q 0.8 :level 1}"
       (add-accept-metadata [(keyword type) (keyword subtype)] params-map))))
 
 (defn sort-by-q-value
-  "accepts is a seq of accept types like [[:text :plainn] [:text :html]]
+  "accepts is a seq of accept types like [[:text :plain] [:text :html]]
 
 each item in the seq must have an associated :accept-q metadatum"
   [accepts]
@@ -72,12 +72,12 @@ text/*, text/html, text/html;level=1, */*"
   [accept-string]
   (sort-by-q-value
    (map #(parse-accept-component (s/trim %))
-        (s/split accept-string #","))))
+        (s/split (or accept-string "") #","))))
 
 (defn handle-not-acceptable
   [response]
   (if (= :not-acceptable response)
-    {:status 405
+    {:status 406
      :headers {}}
       response))
 
@@ -95,8 +95,10 @@ Assumes representations are functions from [resource request & rest] to response
   [router request]
   (let [path (:uri request)
         [resource path-params] (router path)
-        method (ns-resolve 'resrc.core (symbol (s/upper-case (name (:method request)))))
-        accepts-list (parse-accept ((:headers request) "Accept"))]
+        method (ns-resolve 'resrc.core (symbol (s/upper-case (name (:request-method request)))))
+        accepts-list (parse-accept (or ((:headers request) "accept")
+                                       "*/*"))]
+
     (if-let [[response-type representation]
              (repr/find-acceptable accepts-list (repr/representations resource))]
       (add-content-type
@@ -104,7 +106,7 @@ Assumes representations are functions from [resource request & rest] to response
         resource
         (method resource (assoc request :path-params path-params)))
        response-type)
-      {:status 405 :headers {}})))
+      {:status 406 :headers {}})))
 
 (defn ring-handler
   [router]
