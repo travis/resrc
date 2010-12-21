@@ -5,11 +5,11 @@ These utilities are all experimental and may be modified or moved
 in the future.
 
 Use at your own risk."
-  (:require [resrc.core :as core]
-            [resrc.util :as util]
-            [resrc.representations :as repr]
+  (:use resrc.core)
+  (:require [resrc.representations :as repr]
             [clojure.string :as s]))
 
+(def *not-acceptable-response* {:status 406 :headers {} :body "Could not find acceptable representation."})
 
 (defn emit-resource-handler
   [[method & forms]]
@@ -28,14 +28,80 @@ Use at your own risk."
                           :as ~'+request}]
             ~@forms))
 
-;;(emit-resource-handler '(get (prn (+query-string))))
+(defn split-type
+  [type]
+  [(keyword (namespace type)) (keyword (name type))])
+
+(defn emit-representations
+  [representations]
+  (apply vector
+         (map (fn [[type representation]] [(split-type type)
+                                          `(fn [~'+response] ~representation)])
+              (partition 2 representations))))
+
+(defn add-content-type
+  [response type-vector]
+  (assoc response
+    :headers
+    (assoc (:headers response)
+      "Content-Type" (s/join "/" (map name type-vector)))))
+
+(defn apply-representation [representations accepts-list response]
+  (if-let [[response-type representation]
+           (repr/find-acceptable accepts-list representations)]
+    (add-content-type (representation response) response-type)
+    *not-acceptable-response*))
+
+(defn process-request
+  [resource request]
+  (assoc ((ns-resolve 'resrc.core (symbol (s/upper-case (name (:request-method request)))))
+          resource request)
+    :resource resource))
 
 (defmacro resource
+  "Usage:  (resource method-implementations+ representations?)
+
+Create a resource by specifying implementations for the Resource and
+Representable protocols.
+
+Bindings for each method-implementation will be automatically created:
+standard Ring properties will be bound to variables prefixed by + - ie
+the following variables will be available in the the context of each method
+implementation:
+
++server-port
++server-name
++remote-addr
++uri
++query-string
++scheme
++request-method
++content-type
++content-length
++character-encoding
++headers
++body
+
+representations should be a vector of alternating media types and
+representation implementations. The response will be available
+in these implementations as +response.
+"
   [& args]
-  (let [[representations & specs] (reverse args)]
-    `(repr/with-representations
-       (reify resrc.core/Resource ~@(map emit-resource-handler specs))
-       ~(util/emit-representations representations))))
+  (let [[representations & specs] (reverse args)
+        [representations specs] (if (vector? representations)
+                                  [representations specs]
+                                  ['[:*/* +response] (cons representations specs)])]
+    `(reify
+      Resource
+      ~@(map emit-resource-handler specs)
+      Representable
+      (represent [~'+resource accepts-list# ~'+response]
+                 (apply-representation
+                  ~(emit-representations representations)
+                  accepts-list# ~'+response))
+      ;; for convenience, make a resource behave like a function
+      clojure.lang.IFn
+      (invoke [resource# request#] (process-request resource# request#)))))
 
 (defn parse-accept-params
   "params is a seq of params like 'q=0.8' or 'level=1'"
@@ -54,10 +120,10 @@ params is a map like {:q 0.8 :level 1}"
 (defn parse-accept-component
   "component is a string like text/plain;q=0.8;level=1"
   [component]
-  (let [[content-type & params] (s/split component #";")]
-    (let [[type subtype] (s/split content-type #"/")
-          params-map (parse-accept-params params)]
-      (add-accept-metadata [(keyword type) (keyword subtype)] params-map))))
+  (let [[content-type & params] (s/split component #";")
+        [type subtype] (s/split content-type #"/")
+        params-map (parse-accept-params params)]
+    (add-accept-metadata [(keyword type) (keyword subtype)] params-map)))
 
 (defn sort-by-q-value
   "accepts is a seq of accept types like [[:text :plain] [:text :html]]
@@ -74,40 +140,26 @@ text/*, text/html, text/html;level=1, */*"
    (map #(parse-accept-component (s/trim %))
         (s/split (or accept-string "") #","))))
 
-(defn handle-not-acceptable
-  [response]
-  (if (= :not-acceptable response)
-    {:status 406
-     :headers {}}
-      response))
+(defn wrap-represent
+  "Assumes representations are functions from [resource request] to response."
+  [app]
+  (fn [request]
+    (let [response (app request)
+          resource (:resource response)
+          representations (:representations response)]
+      (if (satisfies? Representable resource)
+        (represent resource
+                   (parse-accept (or ((:headers request) "accept") "*/*"))
+                   response)
+        response))))
 
-(defn add-content-type
-  [response type-vector]
-  (assoc response
-    :headers
-    (assoc (:headers response)
-      "Content-Type" (s/join "/" (map name type-vector)))))
-
-(defn process-request
-  "method should be a method supported by Resource.
-
-Assumes representations are functions from [resource request & rest] to response."
-  [router request]
-  (let [path (:uri request)
-        [resource path-params] (router path)
-        method (ns-resolve 'resrc.core (symbol (s/upper-case (name (:request-method request)))))
-        accepts-list (parse-accept (or ((:headers request) "accept")
-                                       "*/*"))]
-
-    (if-let [[response-type representation]
-             (repr/find-acceptable accepts-list (repr/representations resource))]
-      (add-content-type
-       (representation
-        resource
-        (method resource (assoc request :path-params path-params)))
-       response-type)
-      {:status 406 :headers {}})))
+(defn request-processor
+  [router]
+  (fn [request]
+    (let [[resource path-params] (router (:uri request))]
+      (process-request resource (assoc request :path-params path-params)))))
 
 (defn ring-handler
   [router]
-  #(process-request router %))
+  (-> (request-processor router)
+      wrap-represent))

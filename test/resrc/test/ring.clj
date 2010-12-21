@@ -1,8 +1,7 @@
 (ns resrc.test.ring
   (:use [resrc identifiers ring]
         [clojure.test])
-  (:require [resrc.core :as core]
-            [resrc.util :as util]))
+  (:require [resrc.core :as core]))
 
 (deftest test-parse-accept
   (is (= (seq [[:text :plain] [:text :html]])
@@ -15,48 +14,47 @@
          (parse-accept "text/html;q=0.5, text/plain"))))
 
 
-(deftest test-process-request
+(deftest test-request-processor
   (let [resource
-        (util/resource
-         (core/GET "foo ")
-         [:text/plain {:body (str +response "bar")}])]
-    (is (= "foo bar"
-           (:body (process-request (create-router [["/bar" resource]])
-                                   {:request-method :get
-                                    :uri "/bar"
-                                    :headers {"accept" "text/plain"}}))))
-    (is (= 406
-           (:status (process-request (create-router [["/bar" resource]])
-                                     {:request-method :get
-                                      :uri "/bar"
-                                      :headers {"accept" "text/html"}}))))))
+        (resource
+         (core/GET {:body "foo"}))]
+    (is (= "foo"
+           (:body ((request-processor (create-router [["/bar" resource]]))
+                   {:request-method :get
+                    :uri "/bar"
+                    :headers {}}))))))
 
 (deftest test-resource
   (let [resource (resource
-                  (GET "fuz ")
-                  (PUT +body)
-                  [:text/html  {:body (str +response "representation")}])]
+                  (GET {:body "fuz "})
+                  (PUT {:body +body})
+                  [:text/html  {:body (str (:body +response) "representation")}])]
     (is (= "fuz representation"
-           (:body (process-request (create-router [["/bar" resource]])
-                                   {:request-method :get
-                                    :uri "/bar"
-                                    :headers {"accept" "text/html"}
-                                    :body "foo "}))))
+           (:body ((ring-handler (create-router [["/bar" resource]]))
+                   {:request-method :get
+                    :uri "/bar"
+                    :headers {"accept" "text/html"}
+                    :body "foo "}))))
     (is (= "foo representation"
-           (:body (process-request (create-router [["/bar" resource]])
-                                   {:request-method :put
-                                    :uri "/bar"
-                                    :headers {"accept" "text/html"}
-                                    :body "foo "}))))))
+           (:body ((ring-handler (create-router [["/bar" resource]]))
+                   {:request-method :put
+                    :uri "/bar"
+                    :headers {"accept" "text/html"}
+                    :body "foo "}))))))
 
 
-(deftest test-resource
+(deftest test-ring-handler
   (let [resource (resource
-                  (GET +body)
-                  [:text/html  {:body (str +response "representation")}])]
+                  (GET {:body +body})
+                  [:text/html  {:body (str (:body +response) "representation")}])]
     (is (= "foo representation"
-           (:body (process-request (create-router [["/bar" resource]])
-                                   {:request-method :get
-                                    :uri "/bar"
-                                    :headers {"accept" "text/html"}
-                                    :body "foo "}))))))
+           (:body ((ring-handler (create-router [["/bar" resource]]))
+                   {:request-method :get
+                    :uri "/bar"
+                    :headers {"accept" "text/html"}
+                    :body "foo "}))))
+    (is (= 406
+           (:status ((ring-handler (create-router [["/bar" resource]]))
+                     {:request-method :get
+                      :uri "/bar"
+                      :headers {"accept" "text/plain"}}))))))
