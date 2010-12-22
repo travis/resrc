@@ -1,18 +1,27 @@
 (ns hello.core
   (:use [resrc core identifiers ring]
-        [ring.adapter.jetty :only [run-jetty]])
+        [ring.adapter.jetty :only [run-jetty]]
+        [ring.middleware.params :only [wrap-params]])
   (:require [resrc.client :as client]))
 
-(def hello-server-resrc (resource (GET {:status 200 :body "hello"})
-                                  [:text/plain +response]))
+(def hello-server-resrc (resource (GET {:status 200 :body "hello"})))
 
-(def hello-travis-server-resrc (resource (GET {:status 200 :body "hello travis"})
-                                          [:text/plain +response]))
+(def hello-travis-server-resrc
+     (resource (GET {:status 200
+                     :body (str "hello " (+params "name"))})
+               [:text/plain +response
+                :text/html (assoc +response
+                             :body (str "<html>"
+                                        "<body>"
+                                        (:body +response)
+                                        "</body>"
+                                        "</html>"))]))
 
-(def app (ring-handler
-          (create-router
-           [["/hello" hello-server-resrc]
-            ["/hello/travis" hello-travis-server-resrc]])))
+(def app (-> (ring-handler
+              (create-router
+               [["/hello" hello-server-resrc]
+                ["/hello/:name" hello-travis-server-resrc]]))
+             wrap-params))
 
 (defn -main [] (run-jetty #'app {:port 8080}))
 
@@ -21,4 +30,4 @@
 
 (comment
   (GET hello-client-resrc)
-  (GET hello-travis-client-resrc))
+  (:body (GET hello-travis-client-resrc {:query-params {"foo" "bar" "fuz" "baz"} :headers {"Accept" "text/html"}})))

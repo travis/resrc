@@ -13,18 +13,9 @@ Use at your own risk."
 
 (defn emit-resource-handler
   [[method & forms]]
-  `(~method [~'+resource {~'+server-port :server-port
-                          ~'+server-name :server-name
-                          ~'+remote-addr :remote-addr
-                          ~'+uri :uri
-                          ~'+query-string :query-string
-                          ~'+scheme :scheme
-                          ~'+request-method :request-method
-                          ~'+content-type :content-type
-                          ~'+content-length :content-length
-                          ~'+character-encoding :character-encoding
-                          ~'+headers :headers
+  `(~method [~'+resource {~'+headers :headers
                           ~'+body :body
+                          ~'+params (or :params {})
                           :as ~'+request}]
             ~@forms))
 
@@ -65,26 +56,29 @@ Create a resource by specifying implementations for the Resource and
 Representable protocols.
 
 Bindings for each method-implementation will be automatically created:
-standard Ring properties will be bound to variables prefixed by + - ie
-the following variables will be available in the the context of each method
-implementation:
+Commonly used parameters in the Ring request will be bound to variables
+prefixed by +. The request itself will also be bound in this fasion.
 
-+server-port
-+server-name
-+remote-addr
-+uri
-+query-string
-+scheme
-+request-method
-+content-type
-+content-length
-+character-encoding
+Bound parameters include:
+
++request
 +headers
 +body
++params
 
 representations should be a vector of alternating media types and
 representation implementations. The response will be available
 in these implementations as +response.
+
+Examples
+
+ (resource (GET {:status 200
+                 :body (str \"hello \" (+params \"name\"))})
+           [:text/plain +response
+            :text/html (assoc +response
+                         :body (str \"<html><body>\"
+                                    (:body +response)
+                                    \"</body></html>\"))])
 "
   [& args]
   (let [[representations & specs] (reverse args)
@@ -157,7 +151,9 @@ text/*, text/html, text/html;level=1, */*"
   [router]
   (fn [request]
     (let [[resource path-params] (router (:uri request))]
-      (process-request resource (assoc request :path-params path-params)))))
+      (process-request resource (merge request
+                                       {:path-params path-params
+                                        :params (merge (:params request) path-params)})))))
 
 (defn ring-handler
   [router]
