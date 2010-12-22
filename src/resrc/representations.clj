@@ -36,12 +36,12 @@ in each list may be considered \"preferable\"
   (some (fn [type] (find-representation type representations))
         accepts-list))
 
+(defn split-type
+  [type]
+  [(keyword (namespace type)) (keyword (name type))])
 
-(defn with-representations
-  [obj representations]
-  (with-meta obj (assoc (meta obj) :resrc-representations representations)))
-
-(defn representations
-  [obj]
-  (:resrc-representations (meta obj)))
-
+(defn to-representations
+  [& representations]
+  (map (fn [[type representation]] [(split-type type)
+                                   representation])
+       (partition 2 representations)))

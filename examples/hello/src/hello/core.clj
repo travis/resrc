@@ -2,8 +2,30 @@
   (:use [resrc core identifiers ring]
         [ring.adapter.jetty :only [run-jetty]]
         [ring.middleware.params :only [wrap-params]]
-        [ring.util.response :only [response]])
-  (:require [resrc.client :as client]))
+        [ring.util.response :only [response]]
+        [hiccup.core :only [html]])
+  (:require [resrc.client :as client]
+            [resrc.representations :as repr]))
+
+(extend-type Object
+  Resource
+  (GET [o req] (response (.toString o))))
+
+(extend-type java.util.Map
+  Resource
+  (GET [m req] (response m))
+  Representable
+  (represent [m accepts response]
+             (pick-body-representation
+              m accepts response
+
+              :text/plain (fn [body] (str body))
+              :text/html (fn [body]
+                           (html
+                            [:dl
+                             (apply concat
+                                    (for [[k v] body]
+                                      [[:dt k] [:dd v]]))])))))
 
 (def hello-server-resrc (resource (GET (response "hello"))))
 
@@ -11,16 +33,15 @@
      (resource (GET (response (str "hello " (+params "name"))))
                [:text/plain +response
                 :text/html (assoc +response
-                             :body (str "<html>"
-                                        "<body>"
-                                        (:body +response)
-                                        "</body>"
-                                        "</html>"))]))
+                             :body (html
+                                    [:div (:body +response)]))]))
 
 (def app (-> (ring-handler
               (create-router
                [["/hello" hello-server-resrc]
-                ["/hello/:name" hello-name-server-resrc]]))
+                ["/hello/:name" hello-name-server-resrc]
+                ["/class" Class]
+                ["/map" {:a :b :c :d}]]))
              wrap-params))
 
 (defn -main [] (run-jetty #'app {:port 8080}))

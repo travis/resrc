@@ -19,16 +19,12 @@ Use at your own risk."
                           :as ~'+request}]
             ~@forms))
 
-(defn split-type
-  [type]
-  [(keyword (namespace type)) (keyword (name type))])
-
 (defn emit-representations
   [representations]
   (apply vector
-         (map (fn [[type representation]] [(split-type type)
-                                          `(fn [~'+response] ~representation)])
-              (partition 2 representations))))
+         (map (fn [[type representation]]
+                [type `(fn [~'+response] ~representation)])
+              (apply repr/to-representations representations))))
 
 (defn add-content-type
   [response type-vector]
@@ -36,11 +32,42 @@ Use at your own risk."
             [:headers "Content-Type"]
             (s/join "/" (map name type-vector))))
 
+(defn mod-body
+  [f]
+  (fn [response] (assoc response :body (f (:body response)))))
+
 (defn apply-representation [representations accepts-list response]
+  "Applies a representation function from representations
+to response based on accepts-list.
+
+representations is a vector of two item vectors consisting of a media type
+vector and a function transforming a response like:
+ [[:text :plain] (fn [response] response)]
+
+accepts-list is a vector of acceptable media types. Each item in the vector
+is a media type vector, and may include wildcards.
+
+response is the ring response being transformed
+
+Returns a 406 - Not Acceptable response if no match can be found.
+"
   (if-let [[response-type representation]
            (repr/find-acceptable accepts-list representations)]
     (add-content-type (representation response) response-type)
     *not-acceptable-response*))
+
+(defn pick-representation
+  [resource accepts response & representations]
+  (apply-representation
+   (apply repr/to-representations representations)
+   accepts
+   response))
+
+(defn pick-body-representation
+  [resource accepts response & representations]
+  (apply pick-representation resource accepts response
+         (apply concat
+                (map (fn [[k f]] [k (mod-body f)]) (partition 2 representations)))))
 
 (defn process-request
   [resource request]
