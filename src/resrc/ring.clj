@@ -32,10 +32,9 @@ Use at your own risk."
 
 (defn add-content-type
   [response type-vector]
-  (assoc response
-    :headers
-    (assoc (:headers response)
-      "Content-Type" (s/join "/" (map name type-vector)))))
+  (assoc-in response
+            [:headers "Content-Type"]
+            (s/join "/" (map name type-vector))))
 
 (defn apply-representation [representations accepts-list response]
   (if-let [[response-type representation]
@@ -73,7 +72,13 @@ in these implementations as +response.
 Examples
 
  (resource (GET {:status 200
-                 :body (str \"hello \" (+params \"name\"))})
+                 :body \"hello\"}))
+
+ (resource (GET {:status 200
+                 :body (str \"hello \" (+params \"name\"))}))
+
+ (resource (GET {:status 200
+                 :body \"hello\"})
            [:text/plain +response
             :text/html (assoc +response
                          :body (str \"<html><body>\"
@@ -151,9 +156,11 @@ text/*, text/html, text/html;level=1, */*"
   [router]
   (fn [request]
     (let [[resource path-params] (router (:uri request))]
-      (process-request resource (merge request
-                                       {:path-params path-params
-                                        :params (merge (:params request) path-params)})))))
+      (process-request
+       resource
+       (merge request
+              {:path-params path-params
+               :params (merge (:params request) path-params)})))))
 
 (defn ring-handler
   [router]
