@@ -16,25 +16,23 @@
   (GET [m req] (response m))
   Representable
   (represent [m accepts response]
-             (pick-body-representation
-              m accepts response
-
-              :text/plain (fn [body] (str body))
-              :text/html (fn [body]
-                           (html
-                            [:dl
-                             (apply concat
-                                    (for [[k v] body]
-                                      [[:dt k] [:dd v]]))])))))
+             ((represent-body-fn-from
+               :text/plain (fn [body] (str body))
+               :text/html (fn [body]
+                            (html
+                             [:dl
+                              (apply concat
+                                     (for [[k v] body]
+                                       [[:dt k] [:dd v]]))])))
+              m accepts response)))
 
 (def hello-server-resrc (resource (GET (response "hello"))))
 
 (def hello-name-server-resrc
      (resource (GET (response (str "hello " (+params "name"))))
-               [:text/plain +response
-                :text/html (assoc +response
-                             :body (html
-                                    [:div (:body +response)]))]))
+               (body-as
+                :text/plain identity
+                :text/html (fn [body] (html [:div body])))))
 
 (def app (-> (ring-handler
               (create-router

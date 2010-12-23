@@ -5,7 +5,8 @@ These utilities are all experimental and may be modified or moved
 in the future.
 
 Use at your own risk."
-  (:use resrc.core)
+  (:use resrc.core
+        [resrc.util :only [resource-method?]])
   (:require [resrc.representations :as repr]
             [clojure.string :as s]))
 
@@ -56,18 +57,24 @@ Returns a 406 - Not Acceptable response if no match can be found.
     (add-content-type (representation response) response-type)
     *not-acceptable-response*))
 
-(defn pick-representation
-  [resource accepts response & representations]
-  (apply-representation
-   (apply repr/to-representations representations)
-   accepts
-   response))
+(defn represent-fn-from
+  [& representations]
+  (fn [resource accepts response]
+    (apply-representation
+     (apply repr/to-representations representations)
+     accepts
+     response)))
 
-(defn pick-body-representation
-  [resource accepts response & representations]
-  (apply pick-representation resource accepts response
-         (apply concat
-                (map (fn [[k f]] [k (mod-body f)]) (partition 2 representations)))))
+(defn body-as
+  [& representations]
+  (apply vector
+   (apply concat
+          (map (fn [[k f]] [k (mod-body f)]) (partition 2 representations)))))
+
+(defn represent-body-fn-from
+  [& representations]
+  (apply represent-fn-from
+         (apply body-as representations)))
 
 (defn process-request
   [resource request]
@@ -114,17 +121,17 @@ Examples
 "
   [& args]
   (let [[representations & specs] (reverse args)
-        [representations specs] (if (vector? representations)
-                                  [representations specs]
-                                  ['[:*/* +response] (cons representations specs)])]
+        [representations specs]
+        (if (not (resource-method? representations))
+          [representations specs]
+          ['[:*/* identity] (cons representations specs)])]
     `(reify
       Resource
       ~@(map emit-resource-handler specs)
       Representable
-      (represent [~'+resource accepts-list# ~'+response]
-                 (apply-representation
-                  ~(emit-representations representations)
-                  accepts-list# ~'+response))
+      (represent [resource# accepts-list# response#]
+                 ((apply represent-fn-from ~representations)
+                  resource# accepts-list# response#))
       ;; for convenience, make a resource behave like a function
       clojure.lang.IFn
       (invoke [resource# request#] (process-request resource# request#)))))

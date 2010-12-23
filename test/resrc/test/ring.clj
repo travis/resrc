@@ -28,7 +28,8 @@
   (let [resource (resource
                   (GET {:body "fuz "})
                   (PUT {:body +body})
-                  [:text/html  {:body (str (:body +response) "representation")}])]
+                  (body-as :text/html
+                           #(str % "representation")))]
     (is (= "fuz representation"
            (:body ((ring-handler (create-router [["/bar" resource]]))
                    {:request-method :get
@@ -46,7 +47,8 @@
 (deftest test-ring-handler
   (let [resource (resource
                   (GET {:body +body})
-                  [:text/html  {:body (str (:body +response) "representation")}])]
+                  (body-as
+                   :text/html #(str % "representation")))]
     (is (= "foo representation"
            (:body ((ring-handler (create-router [["/bar" resource]]))
                    {:request-method :get
