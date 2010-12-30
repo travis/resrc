@@ -43,6 +43,28 @@
                     :headers {"accept" "text/html"}
                     :body "foo "}))))))
 
+(defresource DeffedResource
+  []
+  (GET {:body "fuz "})
+  (PUT {:body +body})
+  (body-as :text/html
+           #(str % "representation")))
+
+(deftest test-defresource
+  (let [resource (DeffedResource.)]
+    (is (= "fuz representation"
+           (:body ((ring-handler (create-router [["/bar" resource]]))
+                   {:request-method :get
+                    :uri "/bar"
+                    :headers {"accept" "text/html"}
+                    :body "foo "}))))
+    (is (= "foo representation"
+           (:body ((ring-handler (create-router [["/bar" resource]]))
+                   {:request-method :put
+                    :uri "/bar"
+                    :headers {"accept" "text/html"}
+                    :body "foo "}))))))
+
 
 (deftest test-ring-handler
   (let [resource (resource

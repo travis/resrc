@@ -76,6 +76,20 @@ Returns a 406 - Not Acceptable response if no match can be found.
   (apply represent-fn-from
          (apply body-as representations)))
 
+(defn- resource-representable-specs
+  [args]
+  (let [[representations & specs] (reverse args)
+        [representations specs]
+        (if (not (resource-method? representations))
+          [representations specs]
+          ['[:*/* identity] (cons representations specs)])]
+    `(Resource
+      ~@(map emit-resource-handler specs)
+      Representable
+      (represent [resource# accepts-list# response#]
+                 ((apply represent-fn-from ~representations)
+                  resource# accepts-list# response#)))))
+
 (defn process-request
   [resource request]
   (assoc ((ns-resolve 'resrc.core (symbol (s/upper-case (name (:request-method request)))))
@@ -120,21 +134,16 @@ Examples
                                     \"</body></html>\"))])
 "
   [& args]
-  (let [[representations & specs] (reverse args)
-        [representations specs]
-        (if (not (resource-method? representations))
-          [representations specs]
-          ['[:*/* identity] (cons representations specs)])]
-    `(reify
-      Resource
-      ~@(map emit-resource-handler specs)
-      Representable
-      (represent [resource# accepts-list# response#]
-                 ((apply represent-fn-from ~representations)
-                  resource# accepts-list# response#))
-      ;; for convenience, make a resource behave like a function
-      clojure.lang.IFn
-      (invoke [resource# request#] (process-request resource# request#)))))
+  `(reify
+    ~@(resource-representable-specs args)
+    ;; for convenience, make a resource behave like a function
+    clojure.lang.IFn
+    (invoke [resource# request#] (process-request resource# request#))))
+
+(defmacro defresource
+  [name fields & args]
+  `(deftype ~name ~fields
+     ~@(resource-representable-specs args)))
 
 (defn parse-accept-params
   "params is a seq of params like 'q=0.8' or 'level=1'"
