@@ -1,7 +1,5 @@
 (ns resrc.representations
-  "Utilities for associating representations with resources.
-
-As currently defined, these expect Resources that support metadata.")
+  "Utilities for associating representations with resources.")
 ;;; representations
 
 (defn component-matches
@@ -41,6 +39,14 @@ in each list may be considered \"preferable\"
   [(keyword (namespace type)) (keyword (name type))])
 
 (defn to-representations
+  "Turn
+
+ :text/html x :text/plain y
+
+into a list like:
+
+ [[[:text :html] x] [[:text :plain] y]]
+"
   [& representations]
   (map (fn [[type representation]] [(split-type type)
                                    representation])
