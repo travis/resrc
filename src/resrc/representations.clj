@@ -51,3 +51,12 @@ into a list like:
   (map (fn [[type representation]] [(split-type type)
                                    representation])
        (partition 2 representations)))
+
+(defn conneg-fn
+  "Create a conneg function from two functions - one that extracts an
+accepts list from a request and another that sets a content type on a response."
+  [accepts-list set-content-type]
+  (fn [request response representations]
+    (let [[content-type representation]
+          (find-acceptable (accepts-list request) representations)]
+      (representation (set-content-type response content-type)))))

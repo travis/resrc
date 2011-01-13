@@ -1,5 +1,5 @@
-(ns resrc.test.ring.accepts
-  (:use resrc.ring.accepts
+(ns resrc.test.ring.accept
+  (:use resrc.ring.accept
         [clojure.test])
   (:require [resrc.core :as core]))
 

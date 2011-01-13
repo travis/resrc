@@ -1,4 +1,4 @@
-(ns resrc.ring.accepts
+(ns resrc.ring.accept
   "Utilities for processing HTTP accepts headers.
 
 These utilities are all experimental and may be modified or moved
@@ -44,3 +44,8 @@ text/*, text/html, text/html;level=1, */*"
   (sort-by-q-value
    (map #(parse-accept-component (s/trim %))
         (s/split (or accept-string "") #","))))
+
+(defn accept-header
+  [request]
+  ((:headers request) "accept"))
+
