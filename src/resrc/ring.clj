@@ -32,4 +32,4 @@ Use at your own risk."
 
 (defmacro defrepresentation
   [name args & impls]
-  (repr/emit-defrepresentation 'conneg name args impls))
+  (repr/emit-defrepresentation 'resrc.ring/conneg name args impls))
