@@ -27,4 +27,9 @@ Use at your own risk."
 
 (def conneg
      (repr/conneg-fn #(parse-accept (accept-header %))
-                     #(assoc-in %1 [:headers "Content-Type"] (s/join \/ (map name %2)))))
+                     #(assoc-in %1 [:headers "Content-Type"] (s/join \/ (map name %2)))
+                     (constantly {:status 406 :headers {}})))
+
+(defmacro defrepresentation
+  [name args & impls]
+  (repr/emit-defrepresentation 'conneg name args impls))

@@ -1,5 +1,6 @@
 (ns resrc.representations
-  "Utilities for associating representations with resources.")
+  "Utilities for associating representations with resources."
+  (:require resrc.util))
 ;;; representations
 
 (defn component-matches
@@ -55,8 +56,19 @@ into a list like:
 (defn conneg-fn
   "Create a conneg function from two functions - one that extracts an
 accepts list from a request and another that sets a content type on a response."
-  [accepts-list set-content-type]
-  (fn [request response representations]
-    (let [[content-type representation]
+  [accepts-list set-content-type not-acceptable]
+  (fn [method resource request & representations]
+    (if-let [[content-type representation]
           (find-acceptable (accepts-list request) representations)]
-      (representation (set-content-type response content-type)))))
+      (representation (set-content-type (method resource request) content-type))
+      (not-acceptable))))
+
+(defn emit-defrepresentation-impl
+  [conneg wrapper-sym [method [resource request :as args] & reprs]]
+  `(~method ~args (~conneg ~method ~wrapper-sym ~request ~@(apply to-representations reprs))))
+
+(defn emit-defrepresentation
+  [conneg name [wrapper-sym & _ :as args] impls]
+  `(resrc.util/defwrappertype ~name ~args
+     resrc.core.Resource
+     ~@(map #(emit-defrepresentation-impl conneg wrapper-sym %) impls)))
