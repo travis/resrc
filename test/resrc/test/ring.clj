@@ -16,12 +16,15 @@
   Resource
   (GET [r request] {:body "bar"}))
 
-(defrepresentation bar [inner]
-  (GET [outer request]
-       :bork/plain (fn [response] {:body "foo"})
-       :clam/plain (fn [response] {:body "fun"})))
+(defrepresentation bar [resource]
+    (GET [repr request]
+         (body-as
+          :bork/plain (fn [body] "foo")
+          :clam/plain (fn [body] "fun"))))
 
 (deftest test-defrepresentation
   (is (= {:body "bar"} (GET (foo.) {})))
-  (is (= {:body "foo"} (GET (bar. (foo.)) {:headers {"accept" "bork/plain"}})))
-  (is (= {:body "fun"} (GET (bar. (foo.)) {:headers {"accept" "clam/plain"}}))))
+  (is (= {:headers {"Content-Type" "bork/plain"}, :body "foo"}
+         (GET (bar. (foo.)) {:headers {"accept" "bork/plain"}})))
+  (is (= {:headers {"Content-Type" "clam/plain"}, :body "fun"}
+         (GET (bar. (foo.)) {:headers {"accept" "clam/plain"}}))))

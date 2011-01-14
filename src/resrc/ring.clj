@@ -33,3 +33,13 @@ Use at your own risk."
 (defmacro defrepresentation
   [name args & impls]
   (repr/emit-defrepresentation 'resrc.ring/conneg name args impls))
+
+(defn mod-body
+  [f]
+  (fn [response] (assoc response :body (f (:body response)))))
+
+(defn body-as
+  [& representations]
+  (apply vector
+   (apply concat
+          (map (fn [[k f]] [k (mod-body f)]) (partition 2 representations)))))

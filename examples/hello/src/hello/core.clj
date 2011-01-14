@@ -4,7 +4,7 @@
         [ring.middleware.params :only [wrap-params]]
         [ring.util.response :only [response]]
         [hiccup.core :only [html]])
-  (:require [resrc.client :as client]
+  (:require [resrc-client.core :as client]
             [resrc.representations :as repr]))
 
 (extend-type Object
@@ -13,31 +13,27 @@
 
 (extend-type java.util.Map
   Resource
-  (GET [m req] (response m))
-  Representable
-  (represent [m accepts response]
-             ((represent-body-fn-from
-               :text/plain (fn [body] (str body))
-               :text/html (fn [body]
-                            (html
-                             [:dl
-                              (apply concat
-                                     (for [[k v] body]
-                                       [[:dt k] [:dd v]]))])))
-              m accepts response)))
+  (GET [m req] (response m)))
 
-(def hello-server-resrc (resource (GET (response "hello"))))
+(deftype hello-server-resrc []
+  Resource
+  (GET [_ _] (response "hello")))
 
-(def hello-name-server-resrc
-     (resource (GET (response (str "hello " (+params "name"))))
-               (body-as
+(deftype hello-name-server-resrc []
+  Resource
+  (GET [_ request] (response (str "hello " ((:params request) "name"))))
+  )
+
+(defrepresentation hello-name-server-repr [resrc]
+    (GET [_ _] (body-as
                 :text/plain identity
                 :text/html (fn [body] (html [:div body])))))
 
-(def app (-> (ring-handler
+(def app (-> (handler
               (create-router
-               [["/hello" hello-server-resrc]
-                ["/hello/:name" hello-name-server-resrc]
+               [["/hello" (hello-server-resrc.)]
+                ["/hello/:name" (hello-name-server-repr.
+                                 (hello-name-server-resrc.))]
                 ["/class" Class]
                 ["/map" {:a :b :c :d}]]))
              wrap-params))
@@ -50,4 +46,9 @@
 (comment
   (GET hello-client-resrc)
   (:body (GET hello-travis-client-resrc))
-  (:body (GET hello-travis-client-resrc {:headers {"Accept" "text/html"}})))
+  (:body (GET hello-travis-client-resrc {:headers {"Accept" "text/plain"}}))
+  (:body (GET hello-travis-client-resrc {:headers {"Accept" "text/html"}}))
+
+  (time (dotimes [_ 100] (GET hello-travis-client-resrc {:headers {"Accept" "text/html"}}))))
+
+

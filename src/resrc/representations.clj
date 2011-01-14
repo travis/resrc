@@ -48,24 +48,25 @@ into a list like:
 
  [[[:text :html] x] [[:text :plain] y]]
 "
-  [& representations]
-  (map (fn [[type representation]] [(split-type type)
-                                   representation])
-       (partition 2 representations)))
+  [representations]
+  (apply vector
+         (map (fn [[type representation]] [(split-type type)
+                                          representation])
+              (partition 2 representations))))
 
 (defn conneg-fn
   "Create a conneg function from two functions - one that extracts an
 accepts list from a request and another that sets a content type on a response."
   [accepts-list set-content-type not-acceptable]
-  (fn [method resource request & representations]
+  (fn [method resource request representations]
     (if-let [[content-type representation]
           (find-acceptable (accepts-list request) representations)]
       (representation (set-content-type (method resource request) content-type))
       (not-acceptable))))
 
 (defn emit-defrepresentation-impl
-  [conneg wrapper-sym [method [resource request :as args] & reprs]]
-  `(~method ~args (~conneg ~method ~wrapper-sym ~request ~@(apply to-representations reprs))))
+  [conneg wrapper-sym [method [resource request :as args] reprs]]
+  `(~method ~args (~conneg ~method ~wrapper-sym ~request (to-representations ~reprs))))
 
 (defn emit-defrepresentation
   [conneg name [wrapper-sym & _ :as args] impls]
